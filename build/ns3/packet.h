@@ -86,7 +86,6 @@ public:
      * by the user does not match the type of the underlying tag.
      */
     void GetTag (Tag &tag) const;
-    int p_ttl = 20;
 private:
     /// Friend class
     friend class ByteTagIterator;

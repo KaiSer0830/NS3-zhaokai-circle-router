@@ -173,6 +173,7 @@ std::vector<NanoDetail> NanoSpectrumChannel::GetNeighbors(Ptr<SpectrumPhy> phy) 
 			Ptr<MobilityModel> receiverMobility = (*rxPhyIterator)->GetMobility();
 			double distance = (receiverMobility->GetDistanceFrom(senderMobility));
 			if (distance <= txRange) {					//根据距离判断邻居节点
+				//所有接收网关节点探测数据包的节点都消耗接收能量
 				(*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->ConsumeEnergyReceive((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->GetTestSize());
 				NanoDetail neighbor;
 				neighbor.detail_index = (*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->index;
@@ -204,7 +205,8 @@ std::vector<NanoDetail> NanoSpectrumChannel::GetNeighborss(Ptr<SpectrumPhy> phy,
 			double distance = (receiverMobility->GetDistanceFrom(senderMobility));
 			if (distance <= txRange) {					//根据距离判断邻居节点
 				if(phy->GetDevice()->GetNode()->GetId() > 0 && (*rxPhyIterator)->GetDevice()->GetNode()->GetId() > 0) {				//根据条件过滤不符合条件的普通纳米节点
-					(*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->ConsumeEnergyReceive((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->GetTestSize());	//所有候选节点都需要消耗接收探测数据包的能量,除网关与路由节点外
+					//所有候选节点都需要消耗接收探测数据包的能量,除网关与路由节点外
+					(*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->ConsumeEnergyReceive((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->GetTestSize());
 					//过滤邻居节点中剩余能量不符合要求的，所有过滤条件在路由协议接收时都要重新判断一遍，因为这里筛选只是统计邻居节点数目，不决定具体接收节点
 					if(((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->m_energy) < (phy->GetDevice()->GetObject<SimpleNanoDevice>()->GetMinSatisfidForwardEnergy())) {
 						continue;
@@ -255,7 +257,8 @@ std::vector<NanoDetail> NanoSpectrumChannel::GetOpportNeighborss(Ptr<SpectrumPhy
 			double distance = (receiverMobility->GetDistanceFrom(senderMobility));			//计算距离函数已经修改成循环计算方式
 			if (distance <= txRange) {					//根据距离判断邻居节点
 				if(phy->GetDevice()->GetNode()->GetId() > 0 && (*rxPhyIterator)->GetDevice()->GetNode()->GetId() > 0) {
-					(*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->ConsumeEnergyReceive((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->GetTestSize());	//所有候选节点都需要消耗接收探测数据包的能量,除网关与路由节点外
+					//所有候选节点都需要消耗接收探测数据包的能量,除网关与路由节点外
+					(*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->ConsumeEnergyReceive((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->GetTestSize());
 					//过滤邻居节点中index值不符合要求的，所有过滤条件在路由协议接收时都要重新判断一遍，因为这里筛选只是统计邻居节点数目，不决定具体接收节点
 					if((phy->GetDevice()->GetObject<SimpleNanoDevice>()->index >= (*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->index)) {
 						continue;
@@ -273,6 +276,8 @@ std::vector<NanoDetail> NanoSpectrumChannel::GetOpportNeighborss(Ptr<SpectrumPhy
 						continue;
 					}
 				}
+				//符合筛选条件的候选节点，消耗发送自身探测数据包的能量
+				(*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->ConsumeEnergySend((*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->GetTestSize());
 				NanoDetail neighbor;
 				neighbor.detail_index = (*rxPhyIterator)->GetDevice()->GetObject<SimpleNanoDevice>()->index;
 				neighbor.detail_id = (*rxPhyIterator)->GetDevice()->GetNode()->GetId();

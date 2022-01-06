@@ -25,6 +25,7 @@
 #include "ns3/pointer.h"
 #include "ns3/packet.h"
 #include "simple-nano-device.h"
+#include "nano-l3-header.h"
 #include "nano-mac-queue.h"
 #include "nano-spectrum-phy.h"
 #include "nano-mac-header.h"
@@ -84,13 +85,13 @@ void BackoffBasedNanoMacEntity::DoSendPacket ()
 
 void BackoffBasedNanoMacEntity::Send (Ptr<Packet> p)
 {
-	NanoMacHeader header;
+	NanoMacHeader macHeader;
 	uint32_t src = GetDevice()->GetNode()->GetId();
 	uint32_t dst = 0;
-	header.SetSource(src);
-	header.SetDestination(dst);
+	macHeader.SetSource(src);
+	macHeader.SetDestination(dst);
 
-	p->AddHeader(header);
+	p->AddHeader(macHeader);
 	m_queue.push_back(p);
 
 	if (m_queue.size() == 1) {
@@ -100,12 +101,12 @@ void BackoffBasedNanoMacEntity::Send (Ptr<Packet> p)
 
 void BackoffBasedNanoMacEntity::Send (Ptr<Packet> p, uint32_t dst)
 {
-	NanoMacHeader header;
+	NanoMacHeader macHeader;
 	uint32_t src = GetDevice()->GetNode()->GetId();
-	header.SetSource(src);
-	header.SetDestination(dst);
+	macHeader.SetSource(src);
+	macHeader.SetDestination(dst);
 
-	p->AddHeader(header);
+	p->AddHeader(macHeader);
 	m_queue.push_back(p);
 
 	if (m_queue.size() == 1) {

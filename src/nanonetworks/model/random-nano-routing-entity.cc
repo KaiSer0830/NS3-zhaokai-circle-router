@@ -89,23 +89,21 @@ void RandomNanoRoutingEntity::SendPacket (Ptr<Packet> p)
 
 	if (neighbors.size() != 0) {
 		std::cout << Simulator::Now().GetSeconds() << " " << "GetNode()->GetId():" << GetDevice ()->GetNode()->GetId() << "   " << GetDevice ()->GetPhy()->GetMobility()->GetPosition() << "   " << "neighbors.size ():" << neighbors.size () << "   " << "index:" << GetDevice()->index << std::endl;
-		NanoSeqTsHeader seqTs;
-		p->RemoveHeader(seqTs);
 
-		NanoL3Header header;
-		header.SetSource(GetDevice()->GetNode()->GetId());
-		header.SetDestination(0);						//目的地固定为0，即网关节点
-		header.SetTtl(15);
-		header.SetPacketId(p->GetUid());
-		p->AddHeader(seqTs);
-		p->AddHeader(header);
+		NanoL3Header l3Header;
+		l3Header.SetSource(GetDevice()->GetNode()->GetId());
+		l3Header.SetDestination(0);						//目的地固定为0，即网关节点
+		l3Header.SetTtl(15);
+		l3Header.SetPacketId(p->GetUid());
+		l3Header.Setindex(GetDevice ()->index);
+		p->AddHeader(l3Header);
 
 		UpdateReceivedPacketId(p->GetUid());				//自己发送的自己不需要接收，也放入接收过的数据包队列
 		GetDevice()->ConsumeEnergySend(GetDevice()->GetPacketSize());				//节点消耗发送数据包的能量，，能量是否足够判断已在候选节选择点中判断过
 		bool localFlag = false;				//邻居节点是否存在网关节点标志
 		std::vector<NanoDetail>::iterator it;
 		for (it = neighbors.begin(); it != neighbors.end(); it++) {
-			std::cout << Simulator::Now().GetSeconds() << " " << "SendPacket--neighbor.id:" << (*it).detail_id << "   " << (*it).detail_phy->GetMobility()->GetPosition() << "    " << "packetId:" << p->GetUid() << "   " << "index:" << (*it).detail_index << std::endl;
+			std::cout << Simulator::Now().GetSeconds() << " " << "SendPacket--neighbor.id:" << (*it).detail_id << "   " << (*it).detail_phy->GetMobility()->GetPosition() << "    " << "packetId:" << p->GetUid() << "   " << "ttl:" << l3Header.GetTtl() << "   " << "index:" << (*it).detail_index << std::endl;
 			if((*it).detail_type == 0)	{		//如果是网关节点,将数据包发送给网关节点，其它节点不接收
 				localFlag = true;
 				GetDevice()->GetMac()->Send(p);
@@ -121,16 +119,17 @@ void RandomNanoRoutingEntity::SendPacket (Ptr<Packet> p)
 			GetDevice()->GetMac()->Send(p);
 		}
 	} else {	 		//没有邻居节点	,间隔reSendTimeInterval之后再次调用该节点的mac协议发送
-		Simulator::Schedule (Seconds (GetDevice ()->GetMac ()->reSendTimeInterval), &RandomNanoRoutingEntity::SendPacket, this, p);
+		Simulator::Schedule (Seconds (GetDevice ()->reSendTimeInterval), &RandomNanoRoutingEntity::SendPacket, this, p);			//0.1s
 	}
 }
 
 void RandomNanoRoutingEntity::ReceivePacket (Ptr<Packet> p, Ptr<SpectrumPhy> sourcePhy)
 {
+	NanoMacHeader macHeader;			//注意：需要按照堆栈的顺序来取，不能弄错，mac后放得先取
+	p->RemoveHeader(macHeader);
 	NanoL3Header l3Header;
 	p->RemoveHeader(l3Header);
-	NanoMacHeader macHeader;
-	p->RemoveHeader(macHeader);
+
 
 	bool alreadyReceived = CheckAmongReceivedPacket(p->GetUid());		//根据数据包的id判断该数据包是否已经被接收过
 	if (GetDevice()->m_type == SimpleNanoDevice::NanoInterface) {		//如果节点有消息处理单元并且是纳米网关节点，则传输结束，进行消息处理
@@ -138,19 +137,17 @@ void RandomNanoRoutingEntity::ReceivePacket (Ptr<Packet> p, Ptr<SpectrumPhy> sou
 			p->AddHeader(l3Header);
 			UpdateReceivedPacketId(p->GetUid());				//将数据包id记录队列，防止重复接收
 			sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->packetExistFlag = false;			//自身数据包被别的节点接收，标志位置为true，节点此时没有数据包，可以进行转发别的节点数据包
-			double nextTime = sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->GetL3()->getNextMessageGenerateTime();							//获取节点下一次产生数据包的间隔，间隔是1-4s之内的随机值
-			Simulator::Cancel(sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule);					//清除原有的创建节点数据包Simulator事件，防止存在好几个创建数据包Simulator事件
-			//发送节点延时1-4s之后重新产生新的数据包
-			sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule = Simulator::Schedule (Seconds (nextTime), &MessageProcessUnit::CreteMessage, sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->GetMessageProcessUnit());
+
+			//先判断发送节点之前定时产生数据包的事件是否还存在，如果不存在则重新产生，如果存在则不产生
+			sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->EvendJudge();
 			std::cout << Simulator::Now().GetSeconds() << " " << "ProcessMessage" << "   " << "packetId:" << p->GetUid() << "   " << "sourcePhy:" << sourcePhy->GetDevice()->GetNode()->GetId() << " ----------------------> " << GetDevice()->GetNode()->GetId() << std::endl;
 			GetDevice()->GetMessageProcessUnit()->ProcessMessage(p);
 		} else {
 			std::cout << Simulator::Now().GetSeconds() << " " << "###clear replicate packet###" << " " << "NodeId:" << sourcePhy->GetDevice()->GetNode()->GetId() << "   " << "packetId:" << p->GetUid() << std::endl;
 			sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->packetExistFlag = false;			//自身数据包被别的节点接收，标志位置为true，节点此时没有数据包，可以进行转发别的节点数据包
-			double nextTime = sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->GetL3()->getNextMessageGenerateTime();						//获取节点下一次产生数据包的间隔，间隔是1-4s之内的随机值
-			Simulator::Cancel(sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule);					//清除原有的创建节点数据包Simulator事件，防止存在好几个创建数据包Simulator事件
-			//发送节点延时1-4s之后重新产生新的数据包
-			sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule = Simulator::Schedule (Seconds (nextTime), &MessageProcessUnit::CreteMessage, sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->GetMessageProcessUnit());
+
+			//先判断发送节点之前定时产生数据包的事件是否还存在，如果不存在则重新产生，如果存在则不产生
+			sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->EvendJudge();
 		}
 	} else if (GetDevice()->m_type == SimpleNanoDevice::NanoNode){										//接收的不是网关节点，进行数据包转发
 		GetDevice()->ConsumeEnergyReceive(GetDevice()->GetPacketSize());				//范围内所有节点都需要先消耗能量接收数据包
@@ -165,12 +162,11 @@ void RandomNanoRoutingEntity::ReceivePacket (Ptr<Packet> p, Ptr<SpectrumPhy> sou
 						p->AddHeader(l3Header);
 						UpdateReceivedPacketId(p->GetUid());				//将数据包id记录队列，防止重复接收
 						sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->packetExistFlag = false;			//自身数据包被别的节点接收，标志位置为true，节点此时没有数据包，可以进行转发别的节点数据包
-						double nextTime = sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->GetL3()->getNextMessageGenerateTime();						//获取节点下一次产生数据包的间隔，间隔是1-4s之内的随机值
-						Simulator::Cancel(sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule);					//清除原有的创建节点数据包Simulator事件，防止存在好几个创建数据包Simulator事件
-						//发送节点延时1-4s之后重新产生新的数据包
-						sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule = Simulator::Schedule (Seconds (nextTime), &MessageProcessUnit::CreteMessage, sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->GetMessageProcessUnit());
+
+						//先判断发送节点之前定时产生数据包的事件是否还存在，如果不存在则重新产生，如果存在则不产生
+						sourcePhy->GetDevice()->GetObject<SimpleNanoDevice>()->EvendJudge();
 						GetDevice ()->packetExistFlag = true;			//接收节点接收了转发数据包，该节点该无法创建新的数据包，也无法再接收转发数据包，标志位置为false
-						std::cout << Simulator::Now().GetSeconds() << " " << "forward" << "   " << "packetId:" << p->GetUid() << "   " << "sourcePhy:" << sourcePhy->GetDevice()->GetNode()->GetId() << " ------------------------> " << GetDevice()->GetNode()->GetId() << std::endl;
+						std::cout << Simulator::Now().GetSeconds() << " " << "forward" << "   " << "packetId:" << p->GetUid() << "   " << "ttl:" << l3Header.GetTtl() << "   " << "sourcePhy:" << sourcePhy->GetDevice()->GetNode()->GetId() << " ------------------------> " << GetDevice()->GetNode()->GetId() << std::endl;
 						ForwardPacket(p);
 					}
 				}
@@ -201,7 +197,7 @@ void RandomNanoRoutingEntity::ForwardPacket (Ptr<Packet> p)
 			std::vector<NanoDetail>::iterator it;
 			bool localFlag = false;				//邻居节点是否存在网关节点标志
 			for (it = neighbors.begin(); it != neighbors.end(); it++) {
-				std::cout << Simulator::Now().GetSeconds() << " " << "SendPacket--neighbor.id:" << (*it).detail_id << "   " << (*it).detail_phy->GetMobility()->GetPosition() << "    " << "packetId:" << p->GetUid() << "   " << "index:" << (*it).detail_index << std::endl;
+				std::cout << Simulator::Now().GetSeconds() << " " << "SendPacket--neighbor.id:" << (*it).detail_id << "   " << (*it).detail_phy->GetMobility()->GetPosition() << "    " << "packetId:" << p->GetUid() << "   " << "ttl:" << l3Header.GetTtl() << "   " << "index:" << (*it).detail_index << std::endl;
 				if((*it).detail_type == 0)	{		//如果是网关节点,将数据包发送给网关节点，其它节点不接收
 					localFlag = true;
 					GetDevice()->GetMac()->Send(p);
@@ -217,15 +213,14 @@ void RandomNanoRoutingEntity::ForwardPacket (Ptr<Packet> p)
 				GetDevice()->GetMac()->Send(p);
 			}
 		} else {
-			std::cout << Simulator::Now().GetSeconds() << " " << "TTL expire" << "   " << "GetId:" << GetDevice()->GetNode()->GetId() << "   " << "packetId:" << p->GetUid() << std::endl;
+			std::cout << Simulator::Now().GetSeconds() << " " << "TTL expire" << "   " << "ttl:" << l3Header.GetTtl() << "   " << "GetId:" << GetDevice()->GetNode()->GetId() << "   " << "packetId:" << p->GetUid() << std::endl;
 			GetDevice()->GetObject<SimpleNanoDevice>()->packetExistFlag = false;				//数据包TTL用完，节点空闲
-			double nextTime = GetDevice()->GetObject<SimpleNanoDevice>()->GetL3()->getNextMessageGenerateTime();						//获取节点下一次产生数据包的间隔，间隔是1-4s之内的随机值
-			Simulator::Cancel(GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule);					//清除原有的创建节点数据包Simulator事件，防止存在好几个创建数据包Simulator事件
-			//发送节点延时1-4s之后重新产生新的数据包
-			GetDevice()->GetObject<SimpleNanoDevice>()->nodeSchedule = Simulator::Schedule (Seconds (nextTime), &MessageProcessUnit::CreteMessage, GetDevice()->GetObject<SimpleNanoDevice>()->GetMessageProcessUnit());
+
+			//先判断发送节点之前定时产生数据包的事件是否还存在，如果不存在则重新产生，如果存在则不产生
+			GetDevice()->GetObject<SimpleNanoDevice>()->EvendJudge();
 		}
 	} else {	 		//没有邻居节点	,间隔reSendTimeInterval之后再次调用该节点的mac协议发送
-		Simulator::Schedule (Seconds (GetDevice ()->GetMac ()->reSendTimeInterval), &RandomNanoRoutingEntity::ForwardPacket, this, p);
+		Simulator::Schedule (Seconds (GetDevice ()->reSendTimeInterval), &RandomNanoRoutingEntity::ForwardPacket, this, p);			//0.1s
 	}
 }
 

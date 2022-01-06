@@ -70,7 +70,6 @@ void FSANanoMacEntity::DoSendPacket ()			//处理节点数据包与网关探测�
 	NS_LOG_FUNCTION (this);
 	Ptr<NanoSpectrumPhy> phy = GetDevice ()->GetPhy ();
 
-	//srand ( time(NULL) );
 	Ptr<Packet> p = (m_queue.front ())->Copy ();		//从m_queue队列中复制第一个数据包
 	m_queue.pop_front ();								//m_queue队列中删除第一个数据包
 	phy->StartTx (p);
@@ -83,22 +82,22 @@ void FSANanoMacEntity::DoSendPacket ()			//处理节点数据包与网关探测�
 
 void FSANanoMacEntity::SendGatewaytestPacket(Ptr<Packet> p)			//纳米网关节点发送探测数据包
 {
-	NanoMacHeader header;
-	header.SetDestination(999);
-	header.SetSource(0);
-	p->AddHeader(header);
+	NanoMacHeader macHeader;
+	macHeader.SetDestination(999);
+	macHeader.SetSource(0);
+	p->AddHeader(macHeader);
 	m_queue.push_back (p);
 	DoSendPacket();
 }
 
 void FSANanoMacEntity::Send (Ptr<Packet> p)						//未使用该函数，使用的是下面的带有dst的Send函数
 {
-  NanoMacHeader header;
+  NanoMacHeader macHeader;
   uint32_t src = 0;
   uint32_t dst = 999;
-  header.SetSource (src);
-  header.SetDestination (dst);
-  p->AddHeader (header);
+  macHeader.SetSource (src);
+  macHeader.SetDestination (dst);
+  p->AddHeader (macHeader);
   m_queue.push_back (p);
   if (m_queue.size () == 1) {
 	  Simulator::Schedule (Seconds (0.0), &FSANanoMacEntity::DoSendPacket, this);

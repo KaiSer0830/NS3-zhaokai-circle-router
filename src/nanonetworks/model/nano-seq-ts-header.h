@@ -56,8 +56,8 @@ namespace ns3 {
 		virtual uint32_t Deserialize(Buffer::Iterator start);
 
 	private:
-		uint32_t m_seq; //!< Sequence number
-		uint64_t m_ts; //!< Timestamp
+		uint32_t m_seq; //		!< Sequence number
+		uint64_t m_ts; //		!< Timestamp
 	};
 } // namespace ns3
 

@@ -53,17 +53,8 @@ namespace ns3 {
 			void CreateGatewaytestMessage();			//flow-guided
 			void ProcessMessage (Ptr<Packet> p);
 
-			void SetPacketSize (int s);
-			void SetTestPacketSize (int s);
-			void SetInterarrivalTime (double t);
-			void SetInterarrivalTestTime (double t);
-
 		private:
 			Ptr<SimpleNanoDevice> m_device;
-			int m_packetSize;								//数据包大小
-			int m_testPacketSize;							//探测数据包大小
-			double m_interarrivalTime;					//数据包产生时隙0.1s
-			double m_interarrivalTestTime;				//探测数据包产生时隙0.01s
 
 		public:
 			std::string txLogName;				//数据包接收输出日志名称

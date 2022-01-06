@@ -63,18 +63,19 @@ SimpleNanoDevice::SimpleNanoDevice ()			//变量初始化
 	U = 0;
 	parameter1 = 0;
 	parameter2 = 0;
-	averageindex = 0;
-	mobile = 0;				//flow-guided,节点相对移动性
-	packetExistFlag = false;		//节点当前是否携带数据包，初始值为false，不携带数据包
+	packetExistFlag = false;			//节点当前是否携带数据包，初始值为false，不携带数据包
+	reSendTimeInterval = 0.1;			//flow-guided,发送节点重新发送检测邻居节点的时间间隔
 
 	m_energy = 0;
 	m_maxenergy = 0;
 	m_capEnergyInterval = 0;
+	m_interarrivalTestTime = 0;
 	m_capEnergySpeed = 0;
 	m_EnergySendPerByte = 0;
 	m_EnergyReceivePerByte = 0;
 	m_PacketSize = 100;
-	m_TestSize = 50;
+	m_TestSize = 30;
+	m_AckSize = 10;
 	m_type = SimpleNanoDevice::NanoInterface;
 	m_ifIndex = 0;
 	m_randv = 0;
@@ -305,11 +306,6 @@ void SimpleNanoDevice::SetMessageProcessUnit (Ptr<MessageProcessUnit> mpu)
 {
   NS_LOG_FUNCTION (this);
   m_mpu = mpu;
-  if(m_type == SimpleNanoDevice::NanoNode) {
-	  m_mpu->SetPacketSize(m_PacketSize);			//普通纳米节点设置节点传输数据包的大小
-  } else if(m_type == SimpleNanoDevice::NanoInterface) {
-	  m_mpu->SetTestPacketSize(m_TestSize);			//网关节点设置节点传输探测数据包的大小
-  }
 }
 
 Ptr<MessageProcessUnit> SimpleNanoDevice::GetMessageProcessUnit (void)
@@ -331,6 +327,15 @@ double SimpleNanoDevice::GetEnergyCapacity() const {
 void SimpleNanoDevice::SetMaxEnergy(double maxenergy) {
 	NS_LOG_FUNCTION(this);
 	m_maxenergy = maxenergy;
+}
+
+void SimpleNanoDevice::SetInterarrivalTestTime(double t) {
+	NS_LOG_FUNCTION(this);
+	m_interarrivalTestTime = t;
+}
+
+double SimpleNanoDevice::GetInterarrivalTestTime() {
+	return m_interarrivalTestTime;
 }
 
 void SimpleNanoDevice::SetCapEnergyInterval(double t) {
@@ -421,9 +426,29 @@ void SimpleNanoDevice::SetPacketSize(double packetsize) {
 	m_PacketSize = packetsize;
 }
 
-double SimpleNanoDevice::GetPacketSize() {
+int SimpleNanoDevice::GetPacketSize() {
 	NS_LOG_FUNCTION(this);
 	return m_PacketSize;
+}
+
+void SimpleNanoDevice::SetTestSize(double testsize) {
+	NS_LOG_FUNCTION(this);
+	m_TestSize = testsize;
+}
+
+int SimpleNanoDevice::GetTestSize() {
+	NS_LOG_FUNCTION(this);
+	return m_TestSize;
+}
+
+void SimpleNanoDevice::SetAckSize(double acksize) {
+	NS_LOG_FUNCTION(this);
+	m_AckSize = acksize;
+}
+
+int SimpleNanoDevice::GetAckSize() {
+	NS_LOG_FUNCTION(this);
+	return m_AckSize;
 }
 
 double SimpleNanoDevice::GetM() {					//求候选节点转发的优先级
@@ -438,43 +463,26 @@ void SimpleNanoDevice::SetU(double u) {
 	U = u;
 }
 
-void SimpleNanoDevice::SetTestSize(double testsize) {
-	NS_LOG_FUNCTION(this);
-	m_TestSize = testsize;
-}
-
-int SimpleNanoDevice::GetTestSize() {
-	NS_LOG_FUNCTION(this);
-	return m_TestSize;
-}
-
 void SimpleNanoDevice::SetParameter(double param1,double param2) {
 	parameter1 = param1;
 	parameter2 = param2;
 }
 
-void SimpleNanoDevice::SetaverageIndex(double averageIndex) {
-	averageindex = averageIndex;
+double SimpleNanoDevice::GetMinSatisfidSendEnergy() {			//邻居节点最小发送能量为发送数据包能量+发送自身探测包能量+发送与接收ack包能量+接收网关探测包与候选节点探测包能量
+	return (m_PacketSize + m_TestSize + m_AckSize) * m_EnergySendPerByte + (2 * m_TestSize + m_AckSize) * m_EnergyReceivePerByte;
 }
 
-double SimpleNanoDevice::GetaverageIndex() {
-	return averageindex;
+double SimpleNanoDevice::GetMinSatisfidForwardEnergy() {			//邻居节点最小转发能量需要为发送数据包能量+发送自身探测包能量+发送与接收ack包能量+接收数据包能量+接收候选节点探测包能量+接收网关探测包能量
+	return (m_PacketSize + m_TestSize + m_AckSize) * m_EnergySendPerByte + (m_PacketSize + 2 * m_TestSize + m_AckSize) * m_EnergyReceivePerByte;
 }
 
-void SimpleNanoDevice::Setmobility(double Mobile) {
-	mobile = Mobile;
-}
-
-double SimpleNanoDevice::Getmobility() {
-	return mobile;
-}
-
-double SimpleNanoDevice::GetMinSatisfidSendEnergy() {			//邻居节点最小发送能量为发送数据包能量+发送候选节点探测包能量+接收网关与路由探测包能量
-	return (m_PacketSize + m_TestSize) * m_EnergySendPerByte + 2 * m_TestSize * m_EnergyReceivePerByte;
-}
-
-double SimpleNanoDevice::GetMinSatisfidForwardEnergy() {			//邻居节点最小转发能量需要为接收数据包能量+接收候选节点探测包能量+接收网关与路由探测包能量+发送数据包能量+发送探测包能量
-	return (m_PacketSize + 3 * m_TestSize) * m_EnergyReceivePerByte + (m_PacketSize + m_TestSize) * m_EnergySendPerByte;
+void SimpleNanoDevice::EvendJudge() {
+	if(nodeSchedule.IsExpired()) {
+		double nextTime = GetL3()->getNextMessageGenerateTime();						//获取节点下一次产生数据包的间隔，间隔是1-4s之内的随机值
+		//发送节点延时1-4s之后重新产生新的数据包
+		//std::cout << m_node->GetId() << "+++++++" << nextTime << std::endl;
+		nodeSchedule = Simulator::Schedule (Seconds (nextTime), &MessageProcessUnit::CreteMessage, GetMessageProcessUnit());
+	}
 }
 
 } // namespace ns3

@@ -36,7 +36,7 @@ TypeId NanoL3Header::GetInstanceTypeId(void) const {
 }
 
 uint32_t NanoL3Header::GetSerializedSize(void) const {
-	return 4 + 4 + 4 + 4 + 4 + 4;
+	return 4 + 4 + 4 + 4 + 4;
 }
 
 void NanoL3Header::Serialize(Buffer::Iterator start) const {
@@ -44,7 +44,6 @@ void NanoL3Header::Serialize(Buffer::Iterator start) const {
 	start.WriteHtonU32(m_destination);
 	start.WriteHtonU32(m_ttl);
 	start.WriteHtonU32(m_packetId);
-	start.WriteHtonU32(m_mobility);
 	start.WriteHtonU32(m_index);
 }
 
@@ -55,14 +54,13 @@ uint32_t NanoL3Header::Deserialize(Buffer::Iterator start) {
 	m_destination = rbuf.ReadNtohU32();
 	m_ttl = rbuf.ReadNtohU32();
 	m_packetId = rbuf.ReadNtohU32();
-	m_mobility = rbuf.ReadNtohU32();
 	m_index = rbuf.ReadNtohU32();
 
 	return rbuf.GetDistanceFrom(start);
 }
 
 void NanoL3Header::Print(std::ostream &os) const {
-	os << "src = " << m_source << " dst = " << m_destination << " ttl = " << m_ttl << " pkt id = " << m_packetId << " mobility = " << m_mobility << " index = " << m_index;
+	os << "src = " << m_source << " dst = " << m_destination << " ttl = " << m_ttl << " pkt id = " << m_packetId << " index = " << m_index;
 }
 
 void NanoL3Header::SetSource(uint32_t source) {
@@ -95,14 +93,6 @@ uint32_t NanoL3Header::GetTtl() const {
 
 uint32_t NanoL3Header::GetPacketId() const {
 	return m_packetId;
-}
-
-void NanoL3Header::Setmobility(uint32_t mobility) {
-	m_mobility = mobility;
-}
-
-uint32_t NanoL3Header::Getmobility() {
-	return m_mobility;
 }
 
 void NanoL3Header::Setindex(uint32_t index) {

@@ -41,7 +41,6 @@ namespace ns3 {
 
 	NanoMacEntity::NanoMacEntity() {
 		m_device = 0;
-		reSendTimeInterval = 0.1;
 		m_queue = CreateObject<NanoMacQueue>();
 	}
 

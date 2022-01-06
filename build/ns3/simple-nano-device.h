@@ -126,6 +126,7 @@ namespace ns3 {
 			void SetEnergyCapacity(double energy);					//flow-guided,设置存储能量大小
 			double GetEnergyCapacity() const;							//flow-guided,获取存储能量大小
 			void SetMaxEnergy(double maxenergy);						//flow-guided,设置最大存储能量大小
+			void SetInterarrivalTestTime(double t);						//flow-guided,设置探测数据包产生时隙
 			void SetCapEnergyInterval(double t);					//flow-guided,设置能量捕获时隙
 			void SetCapEnergySpeed(int speed);						//flow-guided,设置能量捕获速率
 			void HarvestEnergy();				//flow-guided,模拟接收能量随机的情况
@@ -136,25 +137,27 @@ namespace ns3 {
 			void SetEnergyReceivePerByte(double energyreceiveperbyte);	//flow-guided,设置接收能耗/字节
 			double GetEnergySendPerByte();								//flow-guided,获取发送能耗/字节
 			double GetEnergyReceivePerByte();								//flow-guided,获取接收能耗/字节
-			void SetPacketSize(double packetsize);
 
-			double GetPacketSize();
-			int GetTestSize();						//flow-guided,获取探测数据包大小
+			void SetPacketSize(double packetsize);		//flow-guided,设置数据包大小
+			int GetPacketSize();						//flow-guided,获取数据包大小
 			void SetTestSize(double testsize);		//flow-guided,设置探测数据包大小
+			int GetTestSize();						//flow-guided,获取探测数据包大小
+			void SetAckSize(double acksize);		//flow-guided,设置ack数据包大小
+			int GetAckSize();						//flow-guided,获取ack数据包大小
+
+			double GetInterarrivalTestTime();		//flow-guided,获取探测数据包产生时隙
 			void SetParameter(double parameter1,double parameter2);
 			double GetM();
 			void SetU(double u);
 
 			void SetaverageIndex(double averageIndex);					//flow-guided,设置平均Index值
-			double GetaverageIndex();									//flow-guided,获取平均Index值
-			void Setmobility(double Mobile);					//flow-guided,设置移动性
-			double Getmobility();
 			void SetEtag(bool Etag);
 			bool GetEtag();
 			double GetMinSatisfidSendEnergy();						//flow-guided,设置最小发送能量
 			double GetMinSatisfidForwardEnergy();					//flow-guided,设置最小转发能量
 			void SetLogName(std::string name);
 			void SetOsFstream(std::ofstream& os, std::string s);
+			void EvendJudge();
 
 			enum NodeType
 			{
@@ -175,8 +178,6 @@ namespace ns3 {
 			double m_txrange;
 
 			uint32_t index;				//flow-guided,节点index值
-			double averageindex;			//flow-guided,节点的周围平均index值
-			double mobile;				//flow-guided,节点相对移动性
 			bool packetExistFlag;		//节点当前是否携带数据包，初始值为false，方便第一次创建
 
 			double m_energy;					//flow-guided,节点当前能量
@@ -185,11 +186,14 @@ namespace ns3 {
 			double m_capEnergySpeed;			//flow-guided,节点能量捕获速度
 			double m_EnergySendPerByte;			//flow-guided,发送能耗/字节
 			double m_EnergyReceivePerByte;		//flow-guided,接收能耗/字节
-			double m_PacketSize;				//flow-guided,数据包大小
-			double m_TestSize;					//flow-guided,探测数据包大小
+			double m_interarrivalTestTime;		//flow-guided,探测数据包产生时隙0.01s
+			int m_PacketSize;				//flow-guided,数据包大小
+			int m_TestSize;					//flow-guided,探测数据包大小
+			int m_AckSize;					//flow-guided,ack数据包大小
 
 			double M;					//flow-guided,候选节点转发的优先级
-			double U,parameter1,parameter2;				//计算候选节点转发优先级的系统参数
+			double U,parameter1,parameter2;				//flow-guided,计算候选节点转发优先级的系统参数
+			double reSendTimeInterval;					//flow-guided,发送节点重新发送检测邻居节点的时间间隔
 
 			std::string energyLog;				//能量消耗输出日志名称
 			std::ofstream osEnergy;

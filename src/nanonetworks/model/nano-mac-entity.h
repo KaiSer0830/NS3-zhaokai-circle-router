@@ -91,7 +91,6 @@ public:
 
   std::vector<NanoDetail> m_neighbors;
   std::vector<NanoDetail> m_neighborss;
-  double reSendTimeInterval;
 
 private:
   Ptr<SimpleNanoDevice> m_device;

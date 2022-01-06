@@ -67,29 +67,28 @@ void PrintMemoryUsage(void);
 string itos(int i);
 
 int main(int argc, char *argv[]) {
-	int nbNanoNodes = 5;
 	int nbNanoGateways = 1;
-	double txRangeNanoNodes = 0.01;			//纳米节点传输范围0.01m
+	double txRangeNanoNodes = 0.012;			//纳米节点传输范围0.012m
 	double txRangeNanoGateway = 0.015;			//纳米网关节点传输范围0.015m,确保在路由与网关信号能覆盖整个血管
 	int seed = 1;
 
 	//仿真一般是为了收集各种不同条件下的数据，常常需要改变一些变量。NS-3提供了Command Line参数接口，可以在运行时对脚本中的变量进行设置，免去了每次更改变量后要重新编译和构建脚本的麻烦
 	//使用CommandLine::AddValue添加自己的变量，通过钩挂自己的变量将其与命令行相关联，使之成为CommandLine可以使用的参数,格式为（属性名称，属性说明，变量）
 	//使用方法./waf --run "scratch/health-care --macType=2"
-	CommandLine cmd;
-	cmd.AddValue("seed", "seed", seed);
-	cmd.AddValue("nbNanoNodes", "nbNanoNodes", nbNanoNodes);
-	cmd.AddValue("nbNanoGateways", "nbNanoGateways", nbNanoGateways);
-	cmd.AddValue("txRangeNanoNodes", "txRangeNanoNodes", txRangeNanoNodes);
-	cmd.AddValue("txRangeNanoGateway", "txRangeNanoGateway", txRangeNanoGateway);
+	//CommandLine cmd;
+	//cmd.AddValue("seed", "seed", seed);
+	//cmd.AddValue("nbNanoNodes", "nbNanoNodes", nbNanoNodes);
+	//cmd.AddValue("nbNanoGateways", "nbNanoGateways", nbNanoGateways);
+	//cmd.AddValue("txRangeNanoNodes", "txRangeNanoNodes", txRangeNanoNodes);
+	//cmd.AddValue("txRangeNanoGateway", "txRangeNanoGateway", txRangeNanoGateway);
 	//cmd.AddValue("macType", "macType", macType);
 	//cmd.AddValue("l3Type", "l3Type", l3Type);
-	cmd.Parse(argc, argv);
+	//cmd.Parse(argc, argv);
 
 	Time::SetResolution(Time::FS);				//设置系统运行时间单位
 
 	int nanoNodes[10] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};				//设置循环节点数量参数
-	//int nanoNodes[10] = {10, 30, 50, 70, 90, 110, 130, 150, 170, 190};				//设置循环节点数量参数
+	//int nanoNodes[10] = {15, 30, 45, 60, 75, 90, 105, 120, 135, 150};				//设置循环节点数量参数
 	for (int rouNum = 1; rouNum < 4; rouNum++) {
 		int macType = rouNum;							//Mac协议类型
 		int l3Type = rouNum;							//路由协议类型
@@ -154,8 +153,8 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 	ofstream fileout5(TxLogFile, ios::trunc);
 	ofstream fileout6(RxLogFile, ios::trunc);
 
-	//timers,设置最小单元时间FS,模拟周期5s
-	double duration = 10;
+	//timers,设置最小单元时间FS,模拟周期15s
+	double duration = 15;
 
 	//layout details,设置动脉大小5*10^-5m^3
 	double xrange = 0.5;		//0.5m
@@ -187,44 +186,32 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 	n_nodes.Create(nbNanoNodes);		//调用了n_nodes对象的Create()方法创建了nbNanoNodes个节点。
 	d_nodes = nano.Install(n_nodes, NanoHelper::nanonode);
 
-
-	//mobility
-//	MobilityHelper mobility;
-//	//初始位置分布器
-//	mobility.SetMobilityModel ("ns3::RandomWaypointMobilityModel",
-//			"Speed",StringValue ("ns3::UniformRandomVariable[Min=0.2|Max=0.2]"),
-//			"Pause",StringValue ("ns3::ConstantRandomVariable[Constant=0.01]"));
-//	mobility.SetPositionAllocator ("ns3::RandomBoxPositionAllocator",
-//			"X", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.5]"),//RandomVariableValue (UniformVariable (0, xrange)),
-//			"Y", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.02]"),//RandomVariableValue (UniformVariable (0, yrange)),
-//			"Z", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.02]"));//RandomVariableValue (UniformVariable (0, zrange)));
-
 	MobilityHelper mobility;
-		//移动轨迹模型
-		mobility.SetMobilityModel ("ns3::GaussMarkovMobilityModel",
-				//设置移动区域的界限
-				"Bounds", BoxValue (Box (0, xrange, 0, yrange, 0, zrange)),
-				//设置每一次移动的间隔
-				"TimeStep", TimeValue (Seconds (0.001)),
-				//设置高斯-马尔可夫模型中可调参数的常数
-				"Alpha", DoubleValue (0),
-				//用于分配平均速度的随机变量,cm/s
-				"MeanVelocity", StringValue ("ns3::UniformRandomVariable[Min=0.1|Max=0.1]"),
-				//用于分配平均方向的随机变量
-				"MeanDirection", StringValue ("ns3::UniformRandomVariable[Min=0|Max=0]"),
-				//用于分配平均Pitch的随机变量
-				"MeanPitch", StringValue ("ns3::UniformRandomVariable[Min=0.05|Max=0.05]"),
-				//用于计算下一个速度值的高斯随机变量
-				"NormalVelocity", StringValue ("ns3::NormalRandomVariable[Mean=0.0|Variance=0.0|Bound=0.0]"),
-				//用于计算下一个方向值的高斯随机变量
-				"NormalDirection", StringValue ("ns3::NormalRandomVariable[Mean=0.0|Variance=0.2|Bound=0.4]"),
-				//用于计算下一个Pitch值的高斯随机变量
-				"NormalPitch", StringValue ("ns3::NormalRandomVariable[Mean=0.0|Variance=0.2|Bound=0.4]"));
-		//初始位置分布器
-		mobility.SetPositionAllocator ("ns3::RandomBoxPositionAllocator",
-				"X", StringValue ("ns3::UniformRandomVariable[Min=0|Max=0.5]"),		//RandomVariableValue (UniformVariable (0, xrange)),
-				"Y", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.01]"),		//RandomVariableValue (UniformVariable (0, yrange)),
-				"Z", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.01]"));		//RandomVariableValue (UniformVariable (0, zrange)));
+	//移动轨迹模型
+	mobility.SetMobilityModel ("ns3::GaussMarkovMobilityModel",
+			//设置移动区域的界限
+			"Bounds", BoxValue (Box (0, xrange, 0, yrange, 0, zrange)),
+			//设置每一次移动的间隔
+			"TimeStep", TimeValue (Seconds (0.01)),
+			//设置高斯-马尔可夫模型中可调参数的常数
+			"Alpha", DoubleValue (0),
+			//用于分配平均速度的随机变量,cm/s
+			"MeanVelocity", StringValue ("ns3::UniformRandomVariable[Min=0.1|Max=0.1]"),
+			//用于分配平均方向的随机变量
+			"MeanDirection", StringValue ("ns3::UniformRandomVariable[Min=0|Max=0]"),
+			//用于分配平均Pitch的随机变量
+			"MeanPitch", StringValue ("ns3::UniformRandomVariable[Min=0.05|Max=0.05]"),
+			//用于计算下一个速度值的高斯随机变量
+			"NormalVelocity", StringValue ("ns3::NormalRandomVariable[Mean=0.0|Variance=0.0|Bound=0.0]"),
+			//用于计算下一个方向值的高斯随机变量
+			"NormalDirection", StringValue ("ns3::NormalRandomVariable[Mean=0.0|Variance=0.2|Bound=0.4]"),
+			//用于计算下一个Pitch值的高斯随机变量
+			"NormalPitch", StringValue ("ns3::NormalRandomVariable[Mean=0.0|Variance=0.2|Bound=0.4]"));
+	//初始位置分布器
+	mobility.SetPositionAllocator ("ns3::RandomBoxPositionAllocator",
+			"X", StringValue ("ns3::UniformRandomVariable[Min=0|Max=0.5]"),		//RandomVariableValue (UniformVariable (0, xrange)),
+			"Y", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.01]"),		//RandomVariableValue (UniformVariable (0, yrange)),
+			"Z", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=0.01]"));		//RandomVariableValue (UniformVariable (0, zrange)));
 	mobility.Install (n_nodes);
 
 	std::ofstream osPostition;
@@ -270,6 +257,13 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 		interface->GetPhy()->SetTransmissionRange(txRangeNanoGateway);
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy> ()->SetPulseDuration(FemtoSeconds(pulseDuration));				//设置物理层协议为TsOokBasedNanoSpectrumPhy
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy> ()->SetPulseInterval(FemtoSeconds(pulseInterval));
+
+
+		double interarrivalTestTime = 0.1;				//探测数据包产生时隙0.1s
+		int testSize = 30;					//探测数据包大小50,这里的探测数据包是指纳米网关使普通纳米节点index值置0发送的探测数据包
+
+		interface->SetInterarrivalTestTime(interarrivalTestTime);				//设置探测数据包产生时隙为0.1s
+		interface->SetTestSize(testSize);				//设置探测数据包大小50
 
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy>()->phyCollLogName = phyCollLogFile;				//底层代码在ts-ook-based-nano-spectrum-phy.cc文件
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy>()->phyTxLogName = phyTxLogFile;
@@ -323,21 +317,23 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 		double capEnergySpeed = 4.0;				//能量捕获速度1-4pJ/s
 		double EnergySendPerByte = 8.0 / 2.0 * 100.0 * 4.0 / 1000000.0;					//发送能耗/字节	1.6*10^-3pJ/byte	计算公式：每个字节8位，平均一半1一半0，每个pulse100aJ，能量效率25%，
 		double EnergyReceivePerByte = 8.0 / 2.0 * 1000.0 * 4.0 / 1000000.0 / 10.0;		//接收能耗/字节	1.6*10^-4pJ/byte
-		double PacketSize = 100.0;				//数据包大小100
-		double testSize = 50;					//探测数据包大小50,这里的探测数据包是指纳米节点确定候选节点时发送的探测数据包，在mac协议中的forward函数中
+		int PacketSize = 100.0;				//数据包大小100
+		int testSize = 30;					//探测数据包大小30,这里的探测数据包是指纳米节点确定候选节点时发送的探测数据包
+		int ackSize = 10;					//ack数据包大小10
 		double U = 10;				//优先级计算公式中的μ
 		double pram1 = 0.5;			//优先级计算公式中的λ1
 		double pram2 = 0.5;			//优先级计算公式中的λ2
-
-		dev->SetEnergySendPerByte(EnergySendPerByte);
-		dev->SetEnergyReceivePerByte(EnergyReceivePerByte);
-		dev->SetPacketSize(PacketSize);
-		dev->SetTestSize(testSize);
 
 		dev->SetEnergyCapacity(energy);
 		dev->SetMaxEnergy(maxenergy);
 		dev->SetCapEnergyInterval(capEnergyInterval);
 		dev->SetCapEnergySpeed(capEnergySpeed);
+
+		dev->SetEnergySendPerByte(EnergySendPerByte);
+		dev->SetEnergyReceivePerByte(EnergyReceivePerByte);
+		dev->SetPacketSize(PacketSize);
+		dev->SetTestSize(testSize);
+		dev->SetAckSize(ackSize);
 		dev->SetU(U);
 		dev->SetParameter(pram1, pram2);
 		dev->energyLog = energyLogFile;									//底层代码在simple-nano-device.cc文件
@@ -352,14 +348,12 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 	Simulator::Schedule(Seconds(0.001), &PrintPosition, &osPostition, postitionLogFile, d_nodes, interface_pos, txRangeNanoNodes);
 
 	//application
-	double testPacketInterval = 0.1;		//纳米网关探测数据包产生时隙0.01s
-	double testSize = 50;					//探测数据包大小50
-
 	for (int i = 0; i < nbNanoNodes; i++) {
 		Ptr<MessageProcessUnit> mpu = CreateObject<MessageProcessUnit> ();
 		mpu->SetDevice(d_nodes.Get(i)->GetObject<SimpleNanoDevice> ());
 		d_nodes.Get(i)->GetObject<SimpleNanoDevice> ()->SetMessageProcessUnit(mpu);		//只有纳米节点和纳米网关才设置了信息处理单元并在节点内部函数设置节点传输数据包的大小
-		double startTime = random->GetValue(0.1, 2.5);
+		double startTime = random->GetValue(2, 5);
+		//std::cout << d_nodes.Get(i)->GetObject<SimpleNanoDevice> ()->GetNode()->GetId() << " " << startTime << std::endl;
 		d_nodes.Get(i)->GetObject<SimpleNanoDevice>()->nodeSchedule = Simulator::Schedule(Seconds(startTime), &MessageProcessUnit::CreteMessage, mpu);		//每个纳米节点调用CreteMessage函数的间隔,间隔为0.2-0.3中一个随机时间
 		if(l3Type == 3) {
 			Simulator::Schedule(Seconds(0.15), &MessageProcessUnit::ComputeIndex, mpu);			//调用index递增函数
@@ -379,8 +373,6 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 		mpu->SetDevice(d_gateways.Get(i)->GetObject<SimpleNanoDevice> ());
 		d_gateways.Get(i)->GetObject<SimpleNanoDevice> ()->SetMessageProcessUnit(mpu);
 		if(l3Type == 3) {
-			mpu->SetInterarrivalTestTime(testPacketInterval);				//设置探测数据包产生时隙为0.01s
-			mpu->SetTestPacketSize(testSize);					//网关节点设置节点传输探测数据包的大小
 			double startTime = random->GetValue(0.0, 0.1);
 			Simulator::Schedule(Seconds(startTime), &MessageProcessUnit::CreateGatewaytestMessage, mpu);		//每个网关节点调用CretetestMessage函数的间隔
 		}

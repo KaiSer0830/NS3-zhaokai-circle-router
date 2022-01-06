@@ -73,7 +73,7 @@ void NanoSeqTsHeader::Print(std::ostream &os) const {
 
 uint32_t NanoSeqTsHeader::GetSerializedSize(void) const {
 	NS_LOG_FUNCTION(this);
-	return 4 + 8;
+	return 4 + 8 + 4;
 }
 
 void NanoSeqTsHeader::Serialize(Buffer::Iterator start) const {

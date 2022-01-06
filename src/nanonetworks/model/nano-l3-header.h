@@ -90,16 +90,12 @@ public:
 
 //  void Setindexaverage(uint32_t index);
 //  uint32_t Getindexaverage();
-  void Setmobility(uint32_t mobility);		//flow-guided
-  uint32_t Getmobility();					//flow-guided
-
 
 private:
   uint32_t m_source;
   uint32_t m_destination;
   uint32_t m_ttl;
   uint32_t m_packetId;
-  uint32_t m_mobility;			//flow-guided
   uint32_t m_index;				//flow-guided
 };
 

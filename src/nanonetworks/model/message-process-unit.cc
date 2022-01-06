@@ -49,10 +49,6 @@ MessageProcessUnit::MessageProcessUnit ()
 {
   NS_LOG_FUNCTION (this);
   m_device = 0;
-  m_packetSize = 100;
-  m_testPacketSize = 50;
-  m_interarrivalTime = 0.1;
-  m_interarrivalTestTime = 0.01;
 }
 
 
@@ -80,29 +76,31 @@ Ptr<SimpleNanoDevice> MessageProcessUnit::GetDevice (void)
 
 void MessageProcessUnit::CreteMessage ()				//从主函数进入
 {
-	std::cout << Simulator::Now().GetSeconds() << " " << "MessageProcessUnit::CreteMessage" << "   " << "GetDevice ()->GetNode()->GetId():" << GetDevice ()->GetNode()->GetId() << "   " << "GetDevice ()->packetExistFlag:" << GetDevice ()->packetExistFlag << std::endl;
-	if(GetDevice()->packetExistFlag == false) {			//前一个数据包是否被接收完毕，一个节点只能拥有一个数据包，无论是自己产生的还是转发别人的
-		NS_LOG_FUNCTION (this);
-		uint8_t *buffer  = new uint8_t[m_packetSize];				//数据包大小100字节
-		for (int i = 0; i < m_packetSize; i++) {
-			buffer[i] = 129;
-		}
-		Ptr<Packet> p = Create<Packet>(buffer, m_packetSize);
-		NanoSeqTsHeader seqTs;				//seqTs的size为12字节
-		seqTs.SetSeq (p->GetUid ());
-		p->AddHeader (seqTs);				//p->GetSize()为初始数据包大小+12
+	if(GetDevice()->packetExistFlag == false && Simulator::Now().GetSeconds() < 10) {			//前一个数据包是否被接收完毕，一个节点只能拥有一个数据包，无论是自己产生的还是转发别人的
 		if (GetDevice()->GetEnergyCapacity() >= GetDevice()->GetMinSatisfidSendEnergy()) {			//节点能量满足最小发送能量
+			NS_LOG_FUNCTION (this);
+			uint8_t *buffer  = new uint8_t[GetDevice ()->m_PacketSize];				//数据包大小100字节
+			for (int i = 0; i < GetDevice ()->m_PacketSize; i++) {
+				buffer[i] = 129;
+			}
+			Ptr<Packet> p = Create<Packet>(buffer, GetDevice ()->m_PacketSize);
+			NanoSeqTsHeader seqTs;				//seqTs的size为12字节
+			seqTs.SetSeq (p->GetUid ());
+			p->AddHeader (seqTs);				//p->GetSize()为初始数据包大小+12
 
 			if(osTx.is_open() == 0) {				//使用Tx.log日志记录节点所有产生的数据包信息
 				osTx.open(txLogName.c_str(), std::ios::app);			//c_str是string类的一个函数，可以把string类型变量转换成char*变量,open()要求的是一个char*字符串，std::ios::app代表以附加的方式输入内容
 			}
 			osTx << GetDevice ()->GetNode ()->GetId () << " " << p->GetUid () << " " << Now().GetSeconds () << std::endl;
 
+			std::cout << Simulator::Now().GetSeconds() << " " << "MessageProcessUnit::CreteMessage" << "   " << "GetDevice ()->GetNode()->GetId():" << GetDevice ()->GetNode()->GetId() << "   " << "GetDevice ()->packetExistFlag:" << GetDevice ()->packetExistFlag << "   " << "√" << std::endl;
 			GetDevice()->packetExistFlag = true;
 			m_device->SendPacket (p);
 		}else {
 			std::cout << "CreteMessage no energy to send" << std::endl;
 		}
+	} else {
+		std::cout << Simulator::Now().GetSeconds() << " " << "MessageProcessUnit::CreteMessage" << "   " << "GetDevice ()->GetNode()->GetId():" << GetDevice ()->GetNode()->GetId() << "   " << "GetDevice ()->packetExistFlag:" << GetDevice ()->packetExistFlag << "   " << "x" << std::endl;
 	}
 }
 
@@ -116,23 +114,22 @@ void MessageProcessUnit::ComputeIndex ()					//节点移动模型计算，0.1s�
 void MessageProcessUnit::CreateGatewaytestMessage ()			//网关节点创建探测数据包，在主程序调用
 {
     NS_LOG_FUNCTION (this);
-	uint8_t *buffer  = new uint8_t[m_testPacketSize];				//由原先的100改为50
-	for (int i = 0; i < m_testPacketSize; i++) {
+	uint8_t *buffer  = new uint8_t[GetDevice ()->m_TestSize];				//大小为50字节
+	for (int i = 0; i < GetDevice ()->m_TestSize; i++) {
 	  buffer[i] = 0;
 	}
-	Ptr<Packet> p = Create<Packet>(buffer, m_testPacketSize);
+	Ptr<Packet> p = Create<Packet>(buffer, GetDevice ()->m_TestSize);
 	NanoSeqTsHeader seqTs;					//seqTs的size为12
 	seqTs.SetSeq (p->GetUid ());
 	p->AddHeader (seqTs);
 	m_device->SendGatewaytestPacket (p);			//p->GetSize()为初始探测包大小+12
-    Simulator::Schedule (Seconds (m_interarrivalTestTime), &MessageProcessUnit::CreateGatewaytestMessage, this);		//每隔0.01秒目的节点发送一次探测数据包
+    Simulator::Schedule (Seconds (GetDevice ()->GetInterarrivalTestTime()), &MessageProcessUnit::CreateGatewaytestMessage, this);		//每隔0.01秒目的节点发送一次探测数据包
 }
 
 void MessageProcessUnit::ProcessMessage (Ptr<Packet> p)
 {
-	NanoL3Header l3Header;
+	NanoL3Header l3Header;					//注意：需要按照堆栈的顺序来取，不能弄错，l3Header后放得先取
 	p->RemoveHeader (l3Header);
-
 	NanoSeqTsHeader seqTs;
 	p->RemoveHeader (seqTs);				//会将原seqTs数据赋值到新创建的seqTs对象
 
@@ -142,31 +139,6 @@ void MessageProcessUnit::ProcessMessage (Ptr<Packet> p)
 		osRx.open(rxLogName.c_str(), std::ios::app);			//c_str是string类的一个函数，可以把string类型变量转换成char*变量,open()要求的是一个char*字符串，std::ios::app代表以附加的方式输入内容
 	}
 	osRx << l3Header.GetSource() << " " << seqTs.GetSeq() << " " << GetDevice ()->GetNode ()->GetId () << " " << p->GetSize() << " " << delay << " " << seqTs.GetTs().GetSeconds() << " " << Now().GetSeconds () << std::endl;
-}
-
-
-void MessageProcessUnit::SetPacketSize (int s)
-{
-	NS_LOG_FUNCTION (this);
-	m_packetSize = s;
-}
-
-void MessageProcessUnit::SetTestPacketSize (int s)
-{
-	NS_LOG_FUNCTION (this);
-	m_testPacketSize = s;
-}
-
-void MessageProcessUnit::SetInterarrivalTime (double t)
-{
-	NS_LOG_FUNCTION (this);
-	m_interarrivalTime = t;
-}
-
-void MessageProcessUnit::SetInterarrivalTestTime (double t)
-{
-	NS_LOG_FUNCTION (this);
-	m_interarrivalTestTime = t;
 }
 
 } // namespace ns3

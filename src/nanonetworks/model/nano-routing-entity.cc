@@ -99,12 +99,12 @@ void NanoRoutingEntity::ForwardPacket(Ptr<Packet> p) {
 double NanoRoutingEntity::getNextMessageGenerateTime() {				//获取节点下一次产生数据包的间隔，间隔是1-4s之内的随机值
 	srand (time(NULL));
 	Ptr<UniformRandomVariable> random = CreateObject<UniformRandomVariable> ();			//类UniformRandomVariable从RandomVariableStream继承
-	double nextTime = random->GetValue(1.0, 2.5);
-	static double sum = 0;
-	static int count = 0;
-	sum += nextTime;
-	count++;
-	//std::cout << nextTime << "  " << sum << "  " << count << "  " << "average:" << sum / count << std::endl;
+	double nextTime = random->GetValue(2, 5);
+//	static double sum = 0;
+//	static int count = 0;
+//	sum += nextTime;
+//	count++;
+//	std::cout << nextTime << "  " << sum << "  " << count << "  " << "average:" << sum / count << std::endl;
 	return nextTime;
 }
 

@@ -271,6 +271,13 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy> ()->SetPulseDuration(FemtoSeconds(pulseDuration));				//设置物理层协议为TsOokBasedNanoSpectrumPhy
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy> ()->SetPulseInterval(FemtoSeconds(pulseInterval));
 
+
+		double interarrivalTestTime = 0.1;				//探测数据包产生时隙0.1s
+		int testSize = 50;					//探测数据包大小50,这里的探测数据包是指纳米网关使普通纳米节点index值置0发送的探测数据包
+
+		interface->SetInterarrivalTestTime(interarrivalTestTime);				//设置探测数据包产生时隙为0.1s
+		interface->SetTestSize(testSize);				//设置探测数据包大小50
+
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy>()->phyCollLogName = phyCollLogFile;				//底层代码在ts-ook-based-nano-spectrum-phy.cc文件
 		interface->GetPhy()->GetObject<TsOokBasedNanoSpectrumPhy>()->phyTxLogName = phyTxLogFile;
 	}
@@ -323,21 +330,23 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 		double capEnergySpeed = 4.0;				//能量捕获速度1-4pJ/s
 		double EnergySendPerByte = 8.0 / 2.0 * 100.0 * 4.0 / 1000000.0;					//发送能耗/字节	1.6*10^-3pJ/byte	计算公式：每个字节8位，平均一半1一半0，每个pulse100aJ，能量效率25%，
 		double EnergyReceivePerByte = 8.0 / 2.0 * 1000.0 * 4.0 / 1000000.0 / 10.0;		//接收能耗/字节	1.6*10^-4pJ/byte
-		double PacketSize = 100.0;				//数据包大小100
-		double testSize = 50;					//探测数据包大小50,这里的探测数据包是指纳米节点确定候选节点时发送的探测数据包，在mac协议中的forward函数中
+		int PacketSize = 100.0;				//数据包大小100
+		int testSize = 50;					//探测数据包大小50,这里的探测数据包是指纳米节点确定候选节点时发送的探测数据包
+		int ackSize = 10;					//ack数据包大小10,
 		double U = 10;				//优先级计算公式中的μ
 		double pram1 = 0.5;			//优先级计算公式中的λ1
 		double pram2 = 0.5;			//优先级计算公式中的λ2
-
-		dev->SetEnergySendPerByte(EnergySendPerByte);
-		dev->SetEnergyReceivePerByte(EnergyReceivePerByte);
-		dev->SetPacketSize(PacketSize);
-		dev->SetTestSize(testSize);
 
 		dev->SetEnergyCapacity(energy);
 		dev->SetMaxEnergy(maxenergy);
 		dev->SetCapEnergyInterval(capEnergyInterval);
 		dev->SetCapEnergySpeed(capEnergySpeed);
+
+		dev->SetEnergySendPerByte(EnergySendPerByte);
+		dev->SetEnergyReceivePerByte(EnergyReceivePerByte);
+		dev->SetPacketSize(PacketSize);
+		dev->SetTestSize(testSize);
+		dev->SetAckSize(ackSize);
 		dev->SetU(U);
 		dev->SetParameter(pram1, pram2);
 		dev->energyLog = energyLogFile;									//底层代码在simple-nano-device.cc文件
@@ -352,9 +361,6 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 	Simulator::Schedule(Seconds(0.001), &PrintPosition, &osPostition, postitionLogFile, d_nodes, interface_pos, txRangeNanoNodes);
 
 	//application
-	double testPacketInterval = 0.1;		//纳米网关探测数据包产生时隙0.01s
-	double testSize = 50;					//探测数据包大小50
-
 	for (int i = 0; i < nbNanoNodes; i++) {
 		Ptr<MessageProcessUnit> mpu = CreateObject<MessageProcessUnit> ();
 		mpu->SetDevice(d_nodes.Get(i)->GetObject<SimpleNanoDevice> ());
@@ -379,8 +385,6 @@ void Run(int nbNanoNodes ,int nbNanoGateways, double txRangeNanoNodes,double txR
 		mpu->SetDevice(d_gateways.Get(i)->GetObject<SimpleNanoDevice> ());
 		d_gateways.Get(i)->GetObject<SimpleNanoDevice> ()->SetMessageProcessUnit(mpu);
 		if(l3Type == 3) {
-			mpu->SetInterarrivalTestTime(testPacketInterval);				//设置探测数据包产生时隙为0.01s
-			mpu->SetTestPacketSize(testSize);					//网关节点设置节点传输探测数据包的大小
 			double startTime = random->GetValue(0.0, 0.1);
 			Simulator::Schedule(Seconds(startTime), &MessageProcessUnit::CreateGatewaytestMessage, mpu);		//每个网关节点调用CretetestMessage函数的间隔
 		}
